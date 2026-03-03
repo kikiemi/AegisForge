@@ -1,0 +1,992 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AegisForge Builder</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap"
+        rel="stylesheet">
+    <script src="https://unpkg.com/esbuild-wasm@0.20.1/lib/browser.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0
+        }
+
+        :root {
+            --bg: #1a1410;
+            --surface: #241c14;
+            --card: #2e2418;
+            --card-hover: #382e20;
+            --border: #4a3a28;
+            --border-light: #5c4a34;
+            --accent: #f0a030;
+            --accent-light: #ffc857;
+            --accent-dim: #c88820;
+            --accent-glow: rgba(240, 160, 48, 0.2);
+            --accent-glow-strong: rgba(240, 160, 48, 0.35);
+            --secondary: #ff7043;
+            --secondary-light: #ff8a65;
+            --text: #f5ede0;
+            --text-secondary: #d4c4a8;
+            --muted: #8a7a62;
+            --success: #a8d648;
+            --success-dark: #7cb328;
+            --danger: #ef5350;
+            --code-bg: #1e1610;
+            --radius: 12px;
+            --radius-sm: 8px
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            line-height: 1.6
+        }
+
+        ::selection {
+            background: var(--accent);
+            color: #1a1410
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--surface)
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-dim)
+        }
+
+        header {
+            width: 100%;
+            padding: 2.5rem 0 2rem;
+            text-align: center;
+            background: linear-gradient(160deg, #1a1410 0%, #2a1e14 30%, #3a2a18 60%, #1a1410 100%);
+            border-bottom: 1px solid var(--border);
+            position: relative;
+            overflow: hidden
+        }
+
+        header::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -10%;
+            width: 120%;
+            height: 200%;
+            background: radial-gradient(ellipse at 50% 0%, rgba(240, 160, 48, 0.06) 0%, transparent 60%);
+            pointer-events: none
+        }
+
+        header h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), var(--accent-light), var(--secondary));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: .5rem;
+            letter-spacing: -.02em
+        }
+
+        header p {
+            color: var(--text-secondary);
+            font-size: 1rem;
+            max-width: 500px;
+            margin: 0 auto
+        }
+
+        .lang-switch {
+            position: absolute;
+            top: 1.2rem;
+            right: 1.5rem;
+            display: flex;
+            gap: .5rem
+        }
+
+        .lang-btn {
+            padding: .45rem .9rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--muted);
+            cursor: pointer;
+            font-size: .78rem;
+            font-weight: 600;
+            font-family: inherit;
+            transition: all .25s ease
+        }
+
+        .lang-btn:hover {
+            border-color: var(--accent-dim);
+            color: var(--text-secondary)
+        }
+
+        .lang-btn.active {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+            border-color: var(--accent);
+            color: #1a1410
+        }
+
+        .container {
+            max-width: 1120px;
+            width: 100%;
+            padding: 2rem 1.5rem
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            flex-wrap: wrap
+        }
+
+        .stat {
+            flex: 1;
+            min-width: 140px;
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.1rem;
+            text-align: center;
+            transition: border-color .3s ease
+        }
+
+        .stat:hover {
+            border-color: var(--accent-dim)
+        }
+
+        .stat .val {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--accent), var(--secondary));
+            background-clip: text;
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent
+        }
+
+        .stat .lbl {
+            font-size: .75rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: .06em;
+            margin-top: .25rem;
+            font-weight: 500
+        }
+
+        .section {
+            margin-bottom: 2rem
+        }
+
+        .section h2 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: .5rem;
+            color: var(--text)
+        }
+
+        .section h2 .badge {
+            font-size: .6rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+            color: #1a1410;
+            font-weight: 700;
+            letter-spacing: .03em
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+            gap: .8rem
+        }
+
+        .feature {
+            background: var(--card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1rem 1.2rem;
+            cursor: pointer;
+            transition: all .25s ease;
+            position: relative;
+            overflow: hidden
+        }
+
+        .feature::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), transparent);
+            opacity: 0;
+            transition: opacity .3s ease
+        }
+
+        .feature:hover {
+            border-color: var(--accent-dim);
+            background: var(--card-hover);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(0, 0, 0, .3)
+        }
+
+        .feature:hover::before {
+            opacity: 1
+        }
+
+        .feature.selected {
+            border-color: var(--accent);
+            background: linear-gradient(160deg, rgba(240, 160, 48, .06), rgba(255, 112, 67, .03))
+        }
+
+        .feature.selected::after {
+            content: '✓';
+            position: absolute;
+            top: .7rem;
+            right: .7rem;
+            width: 24px;
+            height: 24px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: .75rem;
+            font-weight: 800;
+            color: #1a1410
+        }
+
+        .feature.locked {
+            opacity: .75;
+            cursor: default
+        }
+
+        .feature.locked::after {
+            content: '🔒';
+            background: none
+        }
+
+        .feature .name {
+            font-weight: 700;
+            font-size: .92rem;
+            margin-bottom: .3rem;
+            color: var(--text)
+        }
+
+        .feature .desc {
+            font-size: .8rem;
+            color: var(--text-secondary);
+            line-height: 1.5
+        }
+
+        .feature .size {
+            font-size: .72rem;
+            color: var(--accent);
+            margin-top: .5rem;
+            font-weight: 600
+        }
+
+        .deps {
+            font-size: .68rem;
+            color: var(--secondary-light);
+            margin-top: .2rem;
+            font-weight: 500
+        }
+
+        .actions {
+            display: flex;
+            gap: .8rem;
+            margin: 1.5rem 0;
+            flex-wrap: wrap;
+            align-items: center
+        }
+
+        .btn {
+            padding: .75rem 1.5rem;
+            border-radius: var(--radius-sm);
+            border: none;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: .85rem;
+            transition: all .25s ease;
+            font-family: inherit;
+            display: inline-flex;
+            align-items: center;
+            gap: .4rem
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+            color: #1a1410;
+            box-shadow: 0 4px 16px var(--accent-glow)
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px var(--accent-glow-strong)
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, var(--success), var(--success-dark));
+            color: #1a1410;
+            box-shadow: 0 4px 16px rgba(168, 214, 72, .25);
+            font-size: .92rem;
+            padding: .85rem 2.2rem;
+            font-weight: 700
+        }
+
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 32px rgba(168, 214, 72, .35)
+        }
+
+        .btn-download:disabled {
+            opacity: .4;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-secondary)
+        }
+
+        .btn-outline:hover {
+            border-color: var(--accent);
+            color: var(--accent-light)
+        }
+
+        .btn-sm {
+            padding: .5rem 1rem;
+            font-size: .8rem
+        }
+
+        .btn-danger {
+            background: transparent;
+            border: 1px solid var(--danger);
+            color: var(--danger)
+        }
+
+        .btn-danger:hover {
+            background: var(--danger);
+            color: #fff
+        }
+
+        .output {
+            background: var(--code-bg);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 1.3rem;
+            margin-top: .8rem;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: .78rem;
+            white-space: pre-wrap;
+            color: var(--success);
+            max-height: 280px;
+            overflow-y: auto;
+            display: none;
+            line-height: 1.6
+        }
+
+        .presets {
+            display: flex;
+            gap: .6rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap
+        }
+
+        .preset {
+            padding: .5rem 1rem;
+            border-radius: var(--radius-sm);
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: .8rem;
+            font-weight: 600;
+            transition: all .25s ease;
+            font-family: inherit
+        }
+
+        .preset:hover {
+            border-color: var(--accent-dim);
+            color: var(--accent-light);
+            background: var(--card)
+        }
+
+        .preset.active {
+            background: linear-gradient(135deg, var(--accent), var(--accent-dim));
+            border-color: var(--accent);
+            color: #1a1410
+        }
+
+        .download-area {
+            display: none;
+            background: linear-gradient(160deg, rgba(168, 214, 72, .06), rgba(240, 160, 48, .04));
+            border: 1px solid rgba(168, 214, 72, .25);
+            border-radius: var(--radius);
+            padding: 1.8rem;
+            margin: 1rem 0;
+            text-align: center
+        }
+
+        .download-area h3 {
+            font-size: 1.1rem;
+            margin-bottom: .5rem;
+            color: var(--success);
+            font-weight: 700
+        }
+
+        .download-area p {
+            font-size: .85rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem
+        }
+
+        .download-info {
+            font-size: .78rem;
+            color: var(--muted);
+            margin-top: .8rem;
+            font-weight: 500
+        }
+
+        .download-note {
+            font-size: .72rem;
+            color: var(--muted);
+            margin-top: .6rem;
+            font-style: italic
+        }
+
+        .env-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: .3rem;
+            font-size: .68rem;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-top: .4rem;
+            background: rgba(240, 160, 48, .12);
+            color: var(--accent)
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: .6
+            }
+        }
+
+        .building {
+            animation: pulse 1s ease-in-out infinite
+        }
+
+        @media(max-width:640px) {
+            header h1 {
+                font-size: 2rem
+            }
+
+            .grid {
+                grid-template-columns: 1fr
+            }
+
+            .stats-bar {
+                flex-direction: column
+            }
+
+            .lang-switch {
+                position: static;
+                justify-content: center;
+                margin-bottom: 1rem
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="lang-switch">
+            <button class="lang-btn active" onclick="setLang('en')">EN</button>
+            <button class="lang-btn" onclick="setLang('ja')">日本語</button>
+        </div>
+        <h1>⚡ AegisForge Builder</h1>
+        <p id="headerDesc">Select features to build your custom video engine</p>
+    </header>
+    <div class="container">
+        <div class="stats-bar">
+            <div class="stat">
+                <div class="val" id="totalSize">0</div>
+                <div class="lbl" data-en="Est. Size (KB)" data-ja="推定サイズ (KB)">Est. Size (KB)</div>
+            </div>
+            <div class="stat">
+                <div class="val" id="moduleCount">0</div>
+                <div class="lbl" data-en="Modules" data-ja="モジュール数">Modules</div>
+            </div>
+            <div class="stat">
+                <div class="val" id="featureCount">0</div>
+                <div class="lbl" data-en="Features" data-ja="機能数">Features</div>
+            </div>
+        </div>
+        <div class="section">
+            <h2>🎯 <span data-en="Quick Presets" data-ja="クイックプリセット">Quick Presets</span></h2>
+            <div class="presets" id="presetBar"></div>
+        </div>
+        <div class="section">
+            <h2>🔧 <span data-en="Core Engine" data-ja="コアエンジン">Core Engine</span> <span class="badge"
+                    data-en="Required" data-ja="必須">Required</span></h2>
+            <div class="grid" id="coreGrid"></div>
+        </div>
+        <div class="section">
+            <h2>📦 <span data-en="Demuxers & Formats" data-ja="デマクサー＆フォーマット">Demuxers & Formats</span></h2>
+            <div class="grid" id="demuxGrid"></div>
+        </div>
+        <div class="section">
+            <h2>🎬 <span data-en="Effects & Generators" data-ja="エフェクト＆ジェネレータ">Effects & Generators</span></h2>
+            <div class="grid" id="effectsGrid"></div>
+        </div>
+        <div class="section">
+            <h2>🔊 <span data-en="Audio Processing" data-ja="オーディオ処理">Audio Processing</span></h2>
+            <div class="grid" id="audioGrid"></div>
+        </div>
+        <div class="section">
+            <h2>🤖 <span data-en="AI / ML" data-ja="AI / 機械学習">AI / ML</span></h2>
+            <div class="grid" id="mlGrid"></div>
+        </div>
+        <div class="section">
+            <h2>⏱ <span data-en="Timeline & NLE" data-ja="タイムライン＆NLE">Timeline & NLE</span></h2>
+            <div class="grid" id="timelineGrid"></div>
+        </div>
+        <div class="actions">
+            <button class="btn btn-primary" onclick="generateBuild()" id="btnGenerate">⚡ <span data-en="Generate Build"
+                    data-ja="ビルド生成">Generate Build</span></button>
+            <button class="btn btn-outline btn-sm" onclick="copyConfig()" id="btnCopy">📋 <span data-en="Copy Config"
+                    data-ja="設定コピー">Copy Config</span></button>
+            <button class="btn btn-outline btn-sm" onclick="exportJSON()">💾 <span data-en="Export JSON"
+                    data-ja="JSONエクスポート">Export JSON</span></button>
+            <button class="btn btn-danger btn-sm" onclick="clearAll()" id="btnClear"><span data-en="Clear"
+                    data-ja="クリア">Clear</span></button>
+        </div>
+        <div class="download-area" id="downloadArea">
+            <h3 id="dlTitle" data-en="📥 Your Custom Build is Ready!" data-ja="📥 カスタムビルドの準備完了！">📥 Your Custom Build is
+                Ready!</h3>
+            <p id="dlDesc"></p>
+            <button class="btn btn-download" onclick="downloadBundle()" id="btnDownload">⬇ <span
+                    data-en="Download AegisForge.min.js" data-ja="AegisForge.min.js をダウンロード">Download
+                    AegisForge.min.js</span></button>
+            <div class="download-info" id="dlInfo"></div>
+            <div class="download-note" id="dlNote"></div>
+        </div>
+        <div class="output" id="output"></div>
+    </div>
+    <script>
+        const IS_FILE_PROTOCOL = location.protocol === 'file:';
+        let esbuildInitialized = false;
+        let currentLang = 'en';
+        const I18N = {
+            en: {
+                headerDesc: 'Select features to build your custom video engine',
+                presets: { minimal: '🔹 Minimal (Core)', editor: '🎬 Video Editor', converter: '🔄 Format Converter', effects: '✨ Effects Studio', full: '🚀 Full Build' },
+                dlDescLocal: 'esbuild will bundle only your selected modules into a custom AegisForge.min.js',
+                dlDescRemote: 'Download the pre-built bundle matching your preset selection',
+                dlNoteCustom: '💡 For fully custom module selection, run "npm run builder" locally',
+                buildingText: '⏳ Building...',
+                downloadedText: '✓ Downloaded!',
+                errorText: '❌ Build error',
+            },
+            ja: {
+                headerDesc: '欲しい機能を選んで、カスタムビデオエンジンをビルド',
+                presets: { minimal: '🔹 最小構成', editor: '🎬 動画エディタ', converter: '🔄 形式変換', effects: '✨ エフェクト', full: '🚀 フルビルド' },
+                dlDescLocal: 'esbuildが選択モジュールだけをバンドルしてカスタムAegisForge.min.jsを生成します',
+                dlDescRemote: '選択したプリセットに対応するビルド済みバンドルをダウンロード',
+                dlNoteCustom: '💡 モジュール単位のカスタムビルドは「npm run builder」でローカル起動',
+                buildingText: '⏳ ビルド中...',
+                downloadedText: '✓ ダウンロード完了',
+                errorText: '❌ ビルドエラー',
+            }
+        };
+        const MODULES = [
+            { id: 'core', cat: 'core', name: { en: 'Core Engine', ja: 'コアエンジン' }, desc: { en: 'Keyframe engine, Bézier curves, CatmullRom paths, timecodes', ja: 'キーフレームエンジン、ベジェ曲線、CatmullRomパス、タイムコード' }, size: 12, required: true, deps: [] },
+            { id: 'gl', cat: 'core', name: { en: 'WebGL2/WebGPU Renderer', ja: 'WebGL2/WebGPU レンダラー' }, desc: { en: 'GPU shader pipeline, texture management, compute shaders', ja: 'GPUシェーダーパイプライン、テクスチャ管理、コンピュートシェーダー' }, size: 22, required: true, deps: ['core'] },
+            { id: 'media', cat: 'core', name: { en: 'Media Pipeline', ja: 'メディアパイプライン' }, desc: { en: 'WebCodecs decode/encode, VideoFrame management', ja: 'WebCodecsデコード/エンコード、VideoFrame管理' }, size: 8, required: true, deps: ['core'] },
+            { id: 'codec', cat: 'core', name: { en: 'Codec Manager', ja: 'コーデック管理' }, desc: { en: 'Codec detection, capability probing', ja: 'コーデック検出、機能プローブ' }, size: 4, required: false, deps: ['core'] },
+            { id: 'encoders', cat: 'core', name: { en: 'GIF/WebP/APNG Encoder', ja: 'GIF/WebP/APNGエンコーダ' }, desc: { en: 'NeuQuant quantization, LZW, animated image export', ja: 'NeuQuant量子化、LZW、アニメ画像出力' }, size: 18, required: false, deps: ['core'] },
+            { id: 'muxer', cat: 'core', name: { en: 'AegisMuxer', ja: 'AegisMuxer' }, desc: { en: 'MP4/MOV/WebM/MKV/AVI/OGG/MP3 native muxer', ja: 'MP4/MOV/WebM/MKV/AVI/OGG/MP3 ネイティブマルチプレクサ' }, size: 6, required: false, deps: ['core'] },
+            { id: 'adaptive', cat: 'core', name: { en: 'Adaptive Scaler', ja: '適応型スケーラー' }, desc: { en: 'Dynamic resolution scaling based on FPS', ja: 'FPS監視による動的解像度スケーリング' }, size: 3, required: false, deps: ['core'] },
+            { id: 'memory_panic', cat: 'core', name: { en: 'Memory Guard', ja: 'メモリガード' }, desc: { en: 'VRAM/RAM pressure detection, auto cache purge', ja: 'VRAM/RAM圧力検知、自動キャッシュパージ' }, size: 5, required: false, deps: ['core'] },
+            { id: 'recovery', cat: 'core', name: { en: 'A/V Sync Recovery', ja: '音声同期リカバリ' }, desc: { en: 'Drift detection, frame drop/duplicate', ja: 'ドリフト検出、フレームドロップ/複製' }, size: 4, required: false, deps: ['core'] },
+            { id: 'interval_tree', cat: 'core', name: { en: 'Interval Tree', ja: '区間木' }, desc: { en: 'O(log n) clip-at-time query (AVL)', ja: 'O(log n) クリップ時間クエリ（AVL平衡木）' }, size: 4, required: false, deps: ['core'] },
+            { id: 'frame_cache', cat: 'core', name: { en: 'Frame Cache', ja: 'フレームキャッシュ' }, desc: { en: 'GOP-aware LRU cache, keyframe seek, prefetch', ja: 'GOP対応LRUキャッシュ、キーフレームシーク' }, size: 5, required: false, deps: ['core'] },
+            { id: 'fast_pipeline', cat: 'core', name: { en: 'Fast Pipeline', ja: '高速パイプライン' }, desc: { en: 'Batch render, dirty-frame skip, backpressure', ja: 'バッチレンダー、変更なしスキップ、バックプレッシャー' }, size: 5, required: false, deps: ['core', 'interval_tree', 'frame_cache'] },
+            { id: 'transcoder', cat: 'core', name: { en: 'Direct Transcoder', ja: 'ダイレクト・トランスコーダ' }, desc: { en: 'Streaming demux→decode→encode→mux', ja: 'ストリーミング変換パイプライン' }, size: 7, required: false, deps: ['core', 'media', 'muxer'] },
+            { id: 'gpu_fallback', cat: 'core', name: { en: 'GPU Fallback Router', ja: 'GPUフォールバック' }, desc: { en: 'WebGPU→WebGL2→WebGL1→CPU routing', ja: 'WebGPU→WebGL2→WebGL1→CPU 自動切替' }, size: 5, required: false, deps: ['core'] },
+            { id: 'mp4', cat: 'demux', name: { en: 'MP4 Demuxer', ja: 'MP4デマクサー' }, desc: { en: 'ISO BMFF atom parser, H.264/H.265/AAC', ja: 'ISO BMFFアトム解析、H.264/H.265/AAC' }, size: 5, required: false, deps: ['core'] },
+            { id: 'webm', cat: 'demux', name: { en: 'WebM Demuxer', ja: 'WebMデマクサー' }, desc: { en: 'EBML/Matroska parser, VP8/VP9/Opus', ja: 'EBML解析、VP8/VP9/Opus' }, size: 4, required: false, deps: ['core'] },
+            { id: 'mkv', cat: 'demux', name: { en: 'MKV Demuxer', ja: 'MKVデマクサー' }, desc: { en: 'Full Matroska EBML, VINT, lacing, multi-track', ja: '完全Matroska EBML、VINT、レーシング' }, size: 8, required: false, deps: ['core'] },
+            { id: 'avi', cat: 'demux', name: { en: 'AVI Demuxer', ja: 'AVIデマクサー' }, desc: { en: 'RIFF/AVI container, idx1/indx, OpenDML', ja: 'RIFF/AVIコンテナ、OpenDML対応' }, size: 6, required: false, deps: ['core'] },
+            { id: 'flv', cat: 'demux', name: { en: 'FLV Demuxer', ja: 'FLVデマクサー' }, desc: { en: 'FLV tags, H.264 NALU, AAC', ja: 'FLVタグ、H.264 NALU、AAC' }, size: 5, required: false, deps: ['core'] },
+            { id: 'avi_flv', cat: 'demux', name: { en: 'Streaming AVI+FLV', ja: 'ストリーミングAVI+FLV' }, desc: { en: 'Unified ring-buffer streaming demuxer', ja: 'リングバッファ統合ストリーミング' }, size: 7, required: false, deps: ['core'] },
+            { id: 'ogg', cat: 'demux', name: { en: 'Ogg Demuxer', ja: 'Oggデマクサー' }, desc: { en: 'Ogg pages, Vorbis/Opus/Theora', ja: 'Oggページ、Vorbis/Opus/Theora' }, size: 5, required: false, deps: ['core'] },
+            { id: 'video_idct', cat: 'demux', name: { en: 'Video IDCT Decoder', ja: '映像IDCTデコーダ' }, desc: { en: '8×8 IDCT + motion compensation', ja: '8×8 IDCT＋動き補償' }, size: 5, required: false, deps: ['core'] },
+            { id: 'audio_fft', cat: 'demux', name: { en: 'Audio FFT Decoder', ja: '音声FFTデコーダ' }, desc: { en: 'MP3/Vorbis IMDCT decoder', ja: 'MP3/Vorbis IMDCTデコーダ' }, size: 4, required: false, deps: ['core'] },
+            { id: 'bloom', cat: 'effects', name: { en: 'Bloom', ja: 'ブルーム' }, desc: { en: 'Multi-pass Gaussian bloom with HDR threshold', ja: 'マルチパスHDRブルーム' }, size: 3, required: false, deps: ['gl'] },
+            { id: 'blur', cat: 'effects', name: { en: 'Blur', ja: 'ブラー' }, desc: { en: 'Separable Gaussian, box, motion blur', ja: '分離ガウシアン、ボックス、モーションブラー' }, size: 3, required: false, deps: ['gl'] },
+            { id: 'color', cat: 'effects', name: { en: 'Color Grading', ja: 'カラーグレーディング' }, desc: { en: 'LUT 3D, curves, HSL, color wheels', ja: '3D LUT、カーブ、HSL、カラーホイール' }, size: 4, required: false, deps: ['gl'] },
+            { id: 'distort', cat: 'effects', name: { en: 'Distortion', ja: 'ディストーション' }, desc: { en: 'Barrel, pincushion, wave, ripple', ja: 'バレル、ピンクッション、波形、リップル' }, size: 3, required: false, deps: ['gl'] },
+            { id: 'blend', cat: 'effects', name: { en: 'Blend Modes', ja: 'ブレンドモード' }, desc: { en: '25+ modes (multiply, screen, overlay...)', ja: '25種以上（乗算、スクリーン、オーバーレイ等）' }, size: 3, required: false, deps: ['gl'] },
+            { id: 'fractal', cat: 'effects', name: { en: 'Fractal', ja: 'フラクタル' }, desc: { en: 'Mandelbrot, Julia set generators', ja: 'マンデルブロ、ジュリア集合' }, size: 2, required: false, deps: ['gl'] },
+            { id: 'glitch', cat: 'effects', name: { en: 'Glitch', ja: 'グリッチ' }, desc: { en: 'RGB shift, scanlines, datamosh', ja: 'RGBシフト、スキャンライン、データモッシュ' }, size: 3, required: false, deps: ['gl'] },
+            { id: 'luma', cat: 'effects', name: { en: 'Luma Key', ja: 'ルマキー' }, desc: { en: 'Luminance-based keying with feathering', ja: '輝度ベースキーイング＋フェザリング' }, size: 2, required: false, deps: ['gl'] },
+            { id: 'tracker', cat: 'effects', name: { en: 'Object Tracker', ja: 'オブジェクト追跡' }, desc: { en: 'KLT optical flow tracking', ja: 'KLTオプティカルフロー追跡' }, size: 4, required: false, deps: ['gl'] },
+            { id: 'ascii', cat: 'effects', name: { en: 'ASCII Art', ja: 'ASCIIアート' }, desc: { en: 'Real-time character rendering', ja: 'リアルタイム文字レンダリング' }, size: 2, required: false, deps: ['gl'] },
+            { id: 'dom', cat: 'effects', name: { en: 'DOM Overlay', ja: 'DOMオーバーレイ' }, desc: { en: 'HTML/CSS overlay compositing', ja: 'HTML/CSSオーバーレイ合成' }, size: 2, required: false, deps: ['core'] },
+            { id: 'particle', cat: 'effects', name: { en: 'Particle System', ja: 'パーティクルシステム' }, desc: { en: 'GPU particle emitter with physics', ja: 'GPU物理パーティクルエミッタ' }, size: 4, required: false, deps: ['gl'] },
+            { id: 'color_space', cat: 'effects', name: { en: 'Color Space Convert', ja: '色空間変換' }, desc: { en: 'YUV→RGB bilateral, BT.601/709/2020', ja: 'YUV→RGB バイラテラル、BT.601/709/2020' }, size: 4, required: false, deps: ['gl'] },
+            { id: 'worklet', cat: 'audio', name: { en: 'Audio Worklet', ja: 'Audio Worklet' }, desc: { en: 'Custom AudioWorkletProcessor', ja: 'リアルタイム音声処理プロセッサ' }, size: 3, required: false, deps: ['core'] },
+            { id: 'binaural', cat: 'audio', name: { en: 'Binaural Audio', ja: 'バイノーラル' }, desc: { en: '3D spatial audio with HRTF', ja: 'HRTF 3D空間オーディオ' }, size: 3, required: false, deps: ['core'] },
+            { id: 'chiptune', cat: 'audio', name: { en: 'Chiptune', ja: 'チップチューン' }, desc: { en: '8-bit waveform synthesis', ja: '8bit波形合成' }, size: 2, required: false, deps: ['core'] },
+            { id: 'roomtone', cat: 'audio', name: { en: 'Room Tone', ja: 'ルームトーン' }, desc: { en: 'Ambient noise generation', ja: '環境ノイズ生成' }, size: 2, required: false, deps: ['core'] },
+            { id: 'spectrogram', cat: 'audio', name: { en: 'Spectrogram', ja: 'スペクトログラム' }, desc: { en: 'FFT waveform & spectrum visualization', ja: 'FFT波形＆スペクトラム表示' }, size: 3, required: false, deps: ['core'] },
+            { id: 'fft', cat: 'audio', name: { en: 'FFT Engine', ja: 'FFTエンジン' }, desc: { en: 'Radix-2 Cooley-Tukey with windowing', ja: 'Radix-2 Cooley-Tukey＋窓関数' }, size: 3, required: false, deps: ['core'] },
+            { id: 'imdct', cat: 'audio', name: { en: 'IMDCT', ja: 'IMDCT' }, desc: { en: 'Inverse MDCT via FFT decomposition', ja: 'FFT分解による逆MDCT' }, size: 3, required: false, deps: ['fft'] },
+            { id: 'autosync', cat: 'audio', name: { en: 'Audio Sync', ja: '音声自動同期' }, desc: { en: 'Cross-correlation auto-sync', ja: '相互相関による自動同期' }, size: 3, required: false, deps: ['fft'] },
+            { id: 'resample', cat: 'audio', name: { en: 'Resampler', ja: 'リサンプラー' }, desc: { en: 'Windowed-Sinc with Kaiser window', ja: 'Kaiser窓付きSinc補間' }, size: 4, required: false, deps: ['core'] },
+            { id: 'webnn', cat: 'ml', name: { en: 'WebNN', ja: 'WebNN' }, desc: { en: 'Neural network inference (Web Neural Network API)', ja: 'ニューラルネットワーク推論' }, size: 4, required: false, deps: ['core'] },
+            { id: 'optflow', cat: 'ml', name: { en: 'Optical Flow', ja: 'オプティカルフロー' }, desc: { en: 'Lucas-Kanade / Farnebäck dense flow', ja: 'Lucas-Kanade / Farnebäck密フロー' }, size: 4, required: false, deps: ['gl'] },
+            { id: 'stabilize', cat: 'ml', name: { en: 'Stabilization', ja: '手ブレ補正' }, desc: { en: 'Video stabilization via motion estimation', ja: '動き推定による映像安定化' }, size: 4, required: false, deps: ['optflow'] },
+            { id: 'segment', cat: 'ml', name: { en: 'Segmentation', ja: 'セグメンテーション' }, desc: { en: 'Background removal, foreground extraction', ja: '背景除去、前景抽出' }, size: 4, required: false, deps: ['webnn'] },
+            { id: 'magnetic', cat: 'timeline', name: { en: 'Magnetic Timeline', ja: '磁石タイムライン' }, desc: { en: 'Ripple editing, connected clips, snap grid', ja: 'リップル編集、接続クリップ、スナップ' }, size: 6, required: false, deps: ['core'] },
+            { id: 'multicam', cat: 'timeline', name: { en: 'Multicam', ja: 'マルチカム' }, desc: { en: 'Multi-angle editing, CDL, audio sync', ja: 'マルチアングル編集、CDL' }, size: 4, required: false, deps: ['core', 'fft'] },
+            { id: 'history', cat: 'timeline', name: { en: 'Undo/Redo', ja: '取消/やり直し' }, desc: { en: 'JSON Patch diff, bounded ring buffer', ja: 'JSON Patchリングバッファ' }, size: 4, required: false, deps: ['core'] },
+            { id: 'project', cat: 'timeline', name: { en: 'Project File', ja: 'プロジェクトファイル' }, desc: { en: '.aegis format, OPFS auto-save', ja: '.aegis形式、OPFS自動保存' }, size: 5, required: false, deps: ['core', 'history'] }
+        ,
+            { id: 'interactive', cat: 'core', name: { en: 'Interactive Controls', ja: 'インタラクティブ制御' }, desc: { en: 'Pan, zoom, crop interactive overlays', ja: 'パン、ズーム、クロップ インタラクティブ' }, size: 8, required: false, deps: ['core'] },
+            { id: 'recorder', cat: 'core', name: { en: 'Screen Recorder', ja: '画面録画' }, desc: { en: 'MediaRecorder, canvas, camera capture', ja: 'MediaRecorder、キャンバス、カメラ録画' }, size: 6, required: false, deps: ['core'] },
+            { id: 'subtitle', cat: 'effects', name: { en: 'Subtitle Engine', ja: '字幕エンジン' }, desc: { en: 'SRT/ASS/VTT parser, styled text overlay', ja: 'SRT/ASS/VTTパーサー、スタイル字幕' }, size: 4, required: false, deps: ['core'] },
+            { id: 'sdf', cat: 'effects', name: { en: 'SDF Text', ja: 'SDFテキスト' }, desc: { en: 'Signed Distance Field text rendering', ja: '符号付き距離場テキスト' }, size: 3, required: false, deps: ['gl'] },
+            { id: 'lottie', cat: 'effects', name: { en: 'Lottie Player', ja: 'Lottieプレイヤー' }, desc: { en: 'Bodymovin JSON animation renderer', ja: 'Bodymovin JSONアニメーション' }, size: 5, required: false, deps: ['core'] },
+            { id: 'boomerang', cat: 'effects', name: { en: 'Boomerang', ja: 'ブーメラン' }, desc: { en: 'Forward/reverse loop effect', ja: '前後ループエフェクト' }, size: 2, required: false, deps: ['core'] },
+            { id: 'pillow', cat: 'effects', name: { en: 'Pillow Extension', ja: 'ピロー拡張' }, desc: { en: 'Flipnote import, KWZ/PPM parser', ja: 'Flipnote取り込み、KWZ/PPM解析' }, size: 5, required: false, deps: ['core'] },
+            { id: 'beatsync', cat: 'ml', name: { en: 'Beat Sync', ja: 'ビートシンク' }, desc: { en: 'Music beat detection, auto-edit sync', ja: '音楽ビート検出、自動編集同期' }, size: 3, required: false, deps: ['fft'] },
+            { id: 'vj', cat: 'ml', name: { en: 'VJ Engine', ja: 'VJエンジン' }, desc: { en: 'Real-time audio-reactive visuals', ja: 'リアルタイム音声リアクティブ映像' }, size: 3, required: false, deps: ['fft', 'gl'] },
+            { id: 'swarm', cat: 'core', name: { en: 'SWARM Workers', ja: 'SWARMワーカー' }, desc: { en: 'Multi-thread parallel decode/render', ja: 'マルチスレッド並列デコード/レンダー' }, size: 6, required: false, deps: ['core'] }
+        ];
+        const catMap = { core: 'coreGrid', demux: 'demuxGrid', effects: 'effectsGrid', audio: 'audioGrid', ml: 'mlGrid', timeline: 'timelineGrid' };
+        const selected = new Set();
+        const PRESETS = {
+            minimal: ['core', 'gl', 'media'],
+            editor: ['core', 'gl', 'media', 'codec', 'muxer', 'mp4', 'webm', 'bloom', 'blur', 'color', 'blend', 'glitch', 'worklet', 'magnetic', 'history', 'project', 'interval_tree', 'frame_cache', 'fast_pipeline', 'adaptive', 'memory_panic', 'recovery', 'interactive', 'recorder', 'subtitle', 'swarm'],
+            converter: ['core', 'gl', 'media', 'codec', 'muxer', 'transcoder', 'mp4', 'webm', 'mkv', 'avi', 'flv', 'avi_flv', 'ogg', 'video_idct', 'audio_fft', 'fft', 'imdct', 'color_space', 'gpu_fallback', 'resample', 'frame_cache', 'interval_tree', 'encoders', 'swarm'],
+            effects: ['core', 'gl', 'media', 'bloom', 'blur', 'color', 'distort', 'blend', 'fractal', 'glitch', 'luma', 'tracker', 'ascii', 'dom', 'particle', 'color_space', 'gpu_fallback'],
+            full: MODULES.map(m => m.id)
+        };
+        const pathMap = {
+            core: './core', gl: './gl', media: './media', codec: './codec', encoders: './encoders', muxer: './AegisMuxer',
+            adaptive: './core/adaptive', memory_panic: './core/memory_panic', recovery: './core/recovery',
+            interval_tree: './core/interval_tree', frame_cache: './core/frame_cache', fast_pipeline: './core/fast_pipeline',
+            transcoder: './core/transcoder', gpu_fallback: './gpu/fallback',
+            mp4: './demux/mp4', webm: './demux/webm', mkv: './demux/mkv', avi: './demux/avi', flv: './demux/flv',
+            avi_flv: './demux/avi_flv', ogg: './demux/ogg', video_idct: './codec/video_idct', audio_fft: './codec/audio_fft',
+            bloom: './effects/bloom', blur: './effects/blur', color: './effects/color', distort: './effects/distort',
+            blend: './effects/blend', fractal: './effects/fractal', glitch: './effects/glitch', luma: './effects/luma',
+            tracker: './effects/tracker', ascii: './effects/ascii', dom: './effects/dom', particle: './generators/particle',
+            color_space: './gpu/color_space',
+            worklet: './audio/worklet', binaural: './audio/binaural', chiptune: './audio/chiptune', roomtone: './audio/roomtone',
+            spectrogram: './audio/spectrogram', fft: './audio/fft', imdct: './audio/imdct', autosync: './audio/autosync', resample: './audio/resample',
+            webnn: './ml/webnn', optflow: './ml/optflow', stabilize: './ml/stabilize', segment: './ml/segment',
+            magnetic: './timeline/magnetic', multicam: './timeline/multicam', history: './timeline/history', project: './timeline/project',
+            interactive: './interactive', recorder: './recorder',
+            subtitle: './text/subtitle', sdf: './text/sdf', lottie: './text/lottie',
+            boomerang: './effects/boomerang', pillow: './extensions/Pillow',
+            beatsync: './ml/beatsync', vj: './ml/vj', swarm: './core/swarm'
+        };
+        let generatedConfig = '';
+        let activePreset = null;
+
+        function detectMatchingPreset() {
+            for (const [name, ids] of Object.entries(PRESETS)) {
+                if (ids.length === selected.size && ids.every(id => selected.has(id))) return name;
+            }
+            return null;
+        }
+
+        function setLang(lang) {
+            currentLang = lang;
+            document.querySelectorAll('.lang-btn').forEach(b => b.classList.remove('active'));
+            document.querySelectorAll('.lang-btn').forEach(b => { if (b.textContent.includes(lang === 'en' ? 'EN' : '日')) b.classList.add('active') });
+            document.getElementById('headerDesc').textContent = I18N[lang].headerDesc;
+            document.querySelectorAll('[data-' + lang + ']').forEach(el => { el.textContent = el.getAttribute('data-' + lang) });
+            for (const m of MODULES) {
+                const el = document.getElementById('f-' + m.id);
+                if (!el) continue;
+                el.querySelector('.name').textContent = m.name[lang];
+                el.querySelector('.desc').textContent = m.desc[lang];
+            }
+            renderPresets();
+            updateStats();
+        }
+
+        function renderPresets() {
+            const bar = document.getElementById('presetBar');
+            bar.innerHTML = '';
+            const p = I18N[currentLang].presets;
+            for (const [key, label] of Object.entries(p)) {
+                const btn = document.createElement('button');
+                btn.className = 'preset' + (activePreset === key ? ' active' : '');
+                btn.textContent = label;
+                btn.onclick = () => applyPreset(key, btn);
+                bar.appendChild(btn);
+            }
+        }
+
+        function init() {
+            for (const m of MODULES) {
+                const grid = document.getElementById(catMap[m.cat]);
+                if (!grid) continue;
+                const el = document.createElement('div');
+                el.className = 'feature' + (m.required ? ' selected locked' : '');
+                el.id = 'f-' + m.id;
+                el.innerHTML = '<div class="name">' + m.name[currentLang] + '</div><div class="desc">' + m.desc[currentLang] + '</div><div class="size">~' + m.size + ' KB</div>' + (m.deps.length ? '<div class="deps">Requires: ' + m.deps.join(', ') + '</div>' : '');
+                if (m.required) selected.add(m.id);
+                else el.onclick = () => toggleModule(m.id);
+                grid.appendChild(el);
+            }
+            renderPresets();
+            updateStats();
+        }
+
+        function toggleModule(id) {
+            if (selected.has(id)) { selected.delete(id); const el = document.getElementById('f-' + id); if (el) el.classList.remove('selected') }
+            else selectWithDeps(id);
+            activePreset = detectMatchingPreset();
+            updateStats();
+            hideDownload();
+            renderPresets();
+        }
+
+        function selectWithDeps(id) {
+            const m = MODULES.find(x => x.id === id); if (!m) return;
+            for (const d of m.deps) selectWithDeps(d);
+            selected.add(id);
+            const el = document.getElementById('f-' + id); if (el) el.classList.add('selected');
+        }
+
+        function applyPreset(name, btn) {
+            document.querySelectorAll('.preset').forEach(p => p.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            activePreset = name;
+            for (const m of MODULES) { if (!m.required) selected.delete(m.id) }
+            for (const id of (PRESETS[name] || [])) selectWithDeps(id);
+            for (const m of MODULES) {
+                const el = document.getElementById('f-' + m.id);
+                if (el) { if (selected.has(m.id)) el.classList.add('selected'); else el.classList.remove('selected') }
+            }
+            updateStats();
+            hideDownload();
+        }
+
+        function updateStats() {
+            let size = 0, modules = 0;
+            for (const id of selected) {
+                const m = MODULES.find(x => x.id === id); if (!m) continue;
+                size += m.size; modules++;
+            }
+            document.getElementById('totalSize').textContent = size;
+            document.getElementById('moduleCount').textContent = modules;
+            document.getElementById('featureCount').textContent = modules;
+        }
+
+        function generateBuild() {
+            const mods = MODULES.filter(m => selected.has(m.id));
+            let size = 0; for (const m of mods) size += m.size;
+            const imports = mods.map(m => "export * from '" + (pathMap[m.id] || './' + m.id) + "';").join('\n');
+            generatedConfig = imports;
+            const cmd = 'npx esbuild custom_index.ts --bundle --format=iife --global-name=AegisForge --minify --outfile=dist/AegisForge.min.js';
+            const out = document.getElementById('output');
+            out.style.display = 'block';
+            const hdr = currentLang === 'ja' ? 'カスタム index ファイル' : 'Custom Index File';
+            const bld = currentLang === 'ja' ? 'ビルドコマンド' : 'Build Command';
+            const inf = currentLang === 'ja' ? 'バンドル情報' : 'Bundle Info';
+            out.textContent = '═══ ' + hdr + ' (custom_index.ts) ═══\n\n' + imports + '\n\n═══ ' + bld + ' ═══\n\n' + cmd + '\n\n═══ ' + inf + ' ═══\n\n' + (currentLang === 'ja' ? 'モジュール: ' : 'Modules: ') + mods.length + '\n' + (currentLang === 'ja' ? '推定サイズ: ' : 'Est. Size: ') + '~' + size + ' KB' + (currentLang === 'ja' ? ' (minify前)' : ' (before minify)') + '\n' + (currentLang === 'ja' ? '外部依存: 0' : 'Dependencies: 0 external');
+            showDownload(mods.length, size);
+        }
+
+        function showDownload(modules, size) {
+            const area = document.getElementById('downloadArea');
+            area.style.display = 'block';
+            const desc = document.getElementById('dlDesc');
+            const note = document.getElementById('dlNote');
+            const info = document.getElementById('dlInfo');
+            const matched = detectMatchingPreset();
+
+            if (IS_FILE_PROTOCOL) {
+                desc.textContent = I18N[currentLang].dlDescRemote;
+                if (matched) {
+                    note.innerHTML = '<span class="env-badge">🌐 file:// — Preset: ' + matched + '</span>';
+                } else {
+                    note.innerHTML = '<span class="env-badge">🌐 file:// — Full Build (Fallback)</span><br>' + I18N[currentLang].dlNoteCustom;
+                }
+            } else {
+                desc.textContent = I18N[currentLang].dlDescLocal;
+                note.innerHTML = '<span class="env-badge">⚡ Serverless in-browser compilation ready</span>';
+            }
+            info.textContent = (currentLang === 'ja' ? modules + ' モジュール / ~' + size + ' KB' : modules + ' modules / ~' + size + ' KB');
+        }
+
+        function hideDownload() {
+            document.getElementById('downloadArea').style.display = 'none';
+        }
+
+        const fetchPlugin = {
+            name: 'aegis-fetch',
+            setup(build) {
+                build.onResolve({ filter: /.*/ }, args => {
+                    if (args.path === 'custom_index.ts') return { path: args.path, namespace: 'aegis' };
+                    let absPath = args.path;
+                    if (args.importer && args.importer !== 'custom_index.ts') {
+                        const parts = args.importer.split('/');
+                        parts.pop();
+                        const newParts = args.path.split('/');
+                        for (const p of newParts) {
+                            if (p === '..') parts.pop();
+                            else if (p !== '.') parts.push(p);
+                        }
+                        absPath = parts.join('/');
+                    } else {
+                        if (absPath.startsWith('./')) absPath = absPath.substring(2);
+                    }
+                    return { path: absPath, namespace: 'aegis' };
+                });
+
+                build.onLoad({ filter: /.*/, namespace: 'aegis' }, async (args) => {
+                    if (args.path === 'custom_index.ts') return { contents: generatedConfig, loader: 'ts' };
+
+                    const urls = [`../src/${args.path}.ts`, `../src/${args.path}/index.ts`, `../src/${args.path}`];
+                    for (const url of urls) {
+                        const res = await fetch(url);
+                        if (res.ok) return { contents: await res.text(), loader: 'ts' };
+                    }
+                    throw new Error(`Failed to resolve ${args.path}`);
+                });
+            }
+        };
+
+        async function downloadBundle() {
+            const btn = document.getElementById('btnDownload');
+            const span = btn.querySelector('span');
+            const origText = span.textContent;
+            span.textContent = I18N[currentLang].buildingText;
+            span.classList.add('building');
+            btn.disabled = true;
+
+            try {
+                let blob;
+                if (IS_FILE_PROTOCOL) {
+                    const matched = detectMatchingPreset();
+                    const presetFile = matched ? matched + '.min.js' : 'full.min.js';
+                    const res = await fetch('./presets/' + presetFile);
+                    if (!res.ok) throw new Error('Preset not found. Run via HTTP for custom builds.');
+                    blob = await res.blob();
+                } else {
+                    if (!esbuildInitialized) {
+                        await esbuild.initialize({ wasmURL: 'https://unpkg.com/esbuild-wasm@0.20.1/esbuild.wasm' });
+                        esbuildInitialized = true;
+                    }
+                    const result = await esbuild.build({
+                        entryPoints: ['custom_index.ts'],
+                        bundle: true,
+                        minify: true,
+                        format: 'iife',
+                        globalName: 'AegisForge',
+                        plugins: [fetchPlugin]
+                    });
+                    blob = new Blob([result.outputFiles[0].text], { type: 'application/javascript' });
+                }
+
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = 'AegisForge.min.js';
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+
+                span.classList.remove('building');
+                span.textContent = I18N[currentLang].downloadedText;
+                const info = document.getElementById('dlInfo');
+                info.textContent = selected.size + (currentLang === 'ja' ? ' モジュール / ' : ' modules / ') + (blob.size / 1024).toFixed(1) + ' KB (minified JS)';
+                setTimeout(() => { span.textContent = origText; btn.disabled = false; }, 2500);
+            } catch (err) {
+                span.classList.remove('building');
+                span.textContent = I18N[currentLang].errorText + ': ' + err.message;
+                setTimeout(() => { span.textContent = origText; btn.disabled = false; }, 4000);
+            }
+        }
+
+        function copyConfig() {
+            const out = document.getElementById('output');
+            if (out.textContent) navigator.clipboard.writeText(out.textContent).then(() => {
+                const btn = document.getElementById('btnCopy');
+                const orig = btn.querySelector('span').textContent;
+                btn.querySelector('span').textContent = currentLang === 'ja' ? '✓ コピー済' : '✓ Copied';
+                setTimeout(() => { btn.querySelector('span').textContent = orig }, 1500);
+            });
+        }
+
+        function exportJSON() {
+            const mods = MODULES.filter(m => selected.has(m.id));
+            const json = { version: '1.1.0', modules: mods.map(m => ({ id: m.id, name: m.name[currentLang], path: pathMap[m.id], deps: m.deps })), totalSizeKB: mods.reduce((a, m) => a + m.size, 0) };
+            const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'aegisforge-build.json';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+        }
+
+        function clearAll() {
+            for (const m of MODULES) { if (!m.required) { selected.delete(m.id); const el = document.getElementById('f-' + m.id); if (el) el.classList.remove('selected') } }
+            document.querySelectorAll('.preset').forEach(p => p.classList.remove('active'));
+            activePreset = null;
+            updateStats();
+            document.getElementById('output').style.display = 'none';
+            hideDownload();
+            renderPresets();
+        }
+
+        init();
+    </script>
+</body>
+
+</html>
